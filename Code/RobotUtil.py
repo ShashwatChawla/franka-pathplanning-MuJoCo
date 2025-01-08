@@ -68,6 +68,25 @@ def CheckPointOverlap(pointsA, pointsB, axis):
     
     """
     # TODO: Project both set of points on the axis and check for overlap
+    pA_projection = np.matmul(pointsA, axis)
+    pB_projection = np.matmul(pointsB, axis)
+    
+    minA = np.min(pA_projection)
+    maxA = np.max(pA_projection)
+    minB = np.min(pB_projection)
+    maxB = np.max(pB_projection)
+
+    if((minA <=maxB and maxA>= minB) or ( minB<=maxA and maxB>=minA)):
+        return True
+    else:
+        return False
+
+    if max(pA_projection) <= min(pB_projection):
+        return True
+    elif max(pB_projection) <= min(pA_projection):
+        return True
+    
+    return False
 
     raise NotImplementedError
 
@@ -90,10 +109,26 @@ def CheckBoxBoxCollision(pointsA, axesA, pointsB, axesB):
     #SAT cuboid-cuboid collision check. 
     #Hint: Use CheckPointOverlap() function to check for overlap along each axis
     
-    #TODO: Check if cuboids collide along the surface normal of box A 
-    #TODO: Check if cuboids collide along the surface normal of box B
-    #TODO: Check for edge-edge collisions
+    
+    # TODO: Check if cuboids collide along the surface normal of box A 
+    # TODO: Check if cuboids collide along the surface normal of box B
+    
+    for axes in axesA:
+        if not CheckPointOverlap(pointsA, pointsB, axes):
+            return  False
 
+    for axes in axesB:
+        if not CheckPointOverlap(pointsA, pointsB, axes):
+            return False
+    
+
+    # TODO: Check for edge-edge collisions
+    for axA in axesA:
+        for axB in axesB:
+            axes = np.cross(axA, axB)
+            if not CheckPointOverlap(pointsA, pointsB, axes):
+                return False
+    return True
     raise NotImplementedError
 
 if __name__ == "__main__":

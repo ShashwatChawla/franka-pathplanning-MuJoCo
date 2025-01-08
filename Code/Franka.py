@@ -231,7 +231,6 @@ class FrankArm:
             q.append(self.qmin[i]+(self.qmax[i]-self.qmin[i])*random.random())
         return q
 
-
     def CompCollisionBlockPoints(self,ang):
         self.ForwardKin(ang)
 
@@ -242,14 +241,13 @@ class FrankArm:
         
         # Note: you can use rt.BlockDesc2Points to get the cpoints and axes for each collision block
         for i, link in enumerate(self.Cidx):
-            self.Tcoll[i]= ...
-            self.Cpoints[i], self.Caxes[i] = ...
+            self.Tcoll[i]= np.matmul(self.Tcurr[link-1], self.Tblock[i])
+            self.Cpoints[i], self.Caxes[i] = rt.BlockDesc2Points(self.Tcoll[i], self.Cdim[i])
         
     def DetectCollision(self, ang, pointsObs, axesObs):		
         self.CompCollisionBlockPoints(ang)
-
         for i in range(len(self.Cpoints)):
-            for j in range(len(pointsObs)):
+            for j in range(len(pointsObs)): 
                 if rt.CheckBoxBoxCollision(self.Cpoints[i],self.Caxes[i],pointsObs[j], axesObs[j]):
                     return True
         return False

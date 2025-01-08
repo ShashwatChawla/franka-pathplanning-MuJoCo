@@ -9,6 +9,7 @@ import time
 import mujoco as mj
 from mujoco import viewer
 
+
 # Seed the random object
 seed(10)
 
@@ -95,16 +96,64 @@ def naive_interpolation(plan):
     print("Plan has been interpolated successfully!")
 
 #TODO: - Create RRT to find path to a goal configuration by completing the function below. 
-def RRTQuery():
+def RRTQuery(path_shortening=True):
     global FoundSolution
     global plan
     global rrtVertices
     global rrtEdges
 
+    stepSize_ = 0.5
+    goalTolerance_ = 0.5
+    goalBias_ = 0.1
+    epsilon_ = 0.1
+
     while len(rrtVertices)<3000 and not FoundSolution:
         # TODO: - Implement RRT algorithm to find a path to the goal configuration
         # Use the global rrtVertices, rrtEdges, plan and FoundSolution variables in your algorithm
-        pass
+            
+        # Goal Reach
+        if np.random.rand() < goalBias_:
+            q_r = np.array(qGoal)
+        else:
+            q_r = np.array(mybot.SampleRobotConfig())
+        
+
+        q_n_idx = FindNearest(rrtVertices, q_r)
+        q_n = np.array(rrtVertices[q_n_idx])
+
+        # Find Direction_vector & move towards it 
+        q_dir = q_r - q_n 
+        # TODO(Shashwat): Debug why it doesn't work optimally w/t Unit direction vector
+        # q_dir = q_r-q_n/np.linalg.norm(q_r-q_n)
+        q_c =  q_n + stepSize_*q_dir
+
+        
+        q_c = q_n
+        # print(f"[INFO] New ")
+        while np.linalg.norm(q_r[:5]-q_c[:5]) > epsilon_ and not FoundSolution:
+            q_c =  q_n + stepSize_*q_dir
+            
+            if not mybot.DetectCollision(q_c, pointsObs, axesObs):
+                if not mybot.DetectCollisionEdge(q_n, q_c, pointsObs, axesObs):
+                    rrtVertices.append(q_c)
+                    rrtEdges.append(q_n_idx)
+                    q_n_idx = len(rrtVertices)-2
+
+                # Check if q_c is under goal reach
+                if np.linalg.norm(qGoal-q_c)<goalTolerance_:
+                    if not mybot.DetectCollisionEdge(q_c, qGoal, pointsObs, axesObs):
+                        rrtVertices.append(qGoal)
+                        # 2 Cause we need q_c as parent not qGoal which is len(_)-1
+                        rrtEdges.append(len(rrtVertices)-2)
+                        print("[INFO] Goal Reached")
+                        FoundSolution = True
+
+                else:
+                    break
+            else:
+                break
+            
+            q_n = q_c
 
     ### if a solution was found
     if FoundSolution:
@@ -118,11 +167,39 @@ def RRTQuery():
             if c==0:
                 break
 
-        # TODO - Path shortening
-        for i in range(150):
-            # TODO: - Implement path shortening algorithm to shorten the path
-            pass
-    
+        print(f"###### INITIAL PLAN :{len(plan)}")
+        
+        if path_shortening is True:
+            # TODO - Path shortening
+            for i in range(150):
+                # TODO: - Implement path shortening algorithm to shorten the path
+                qA_idx = np.random.randint(0, (len(plan)-1))
+                qA = np.array(plan[qA_idx])
+                qB_idx = np.random.randint(0, (len(plan)-1))
+                qB = np.array(plan[qB_idx])
+
+                if qA_idx != qB_idx:
+                    # Ensures qA is nearest to path start position
+                    if(np.linalg.norm(qA-qInit) > np.linalg.norm(qB-qInit)):
+                        qTemp_idx = qA_idx
+                        qA_idx = qB_idx
+                        qB_idx = qTemp_idx
+                        qTemp = qA
+                        qA = qB
+                        qB = qTemp
+                        # print("Changing qA & qB")                
+
+                    # Do thigs if collision free path
+                    if not mybot.DetectCollisionEdge(qA, qB, pointsObs, axesObs):
+                        # print(f"q_A idx :{qA_idx} | qB_idx :{qB_idx}")
+                        
+                        # Create new plan using slicing
+                        if qB_idx>qA_idx:
+                            plan = plan[:qA_idx+1] + plan[qB_idx:]
+                        else:
+                            plan = plan[:qB_idx+1] +  plan[qA_idx:]            
+            print(f"###### SHORTENED PLAN :{len(plan)}")
+
         for (i, q) in enumerate(plan):
             print("Plan step: ", i, "and joint: ", q)
     
@@ -159,8 +236,12 @@ def position_control(model, data):
         desired_joint_positions = interpolated_plan[joint_counter]
 
         if joint_counter==plan_length-1:
+            # @Shashwat: 
+                # Uncomment for continous movement
             inc = -1*abs(inc)
             joint_counter-=1
+                # Comment for continous movement
+            # inc = 0
         if joint_counter==0:
             inc = 1*abs(inc)
     
@@ -191,7 +272,8 @@ if __name__ == "__main__":
     mj.set_mjcb_control(position_control)
 
     # Compute the RRT solution
-    RRTQuery()
+    # Change variable to Test w/t & w/tout path_shortening
+    RRTQuery(path_shortening=True)
 
     # Launch the simulate viewer
     viewer.launch(model, data)

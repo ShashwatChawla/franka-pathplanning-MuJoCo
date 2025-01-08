@@ -161,8 +161,12 @@ def position_control(model, data):
         desired_joint_positions = interpolated_plan[joint_counter]
 
         if joint_counter==plan_length-1:
+            # @Shashwat: 
+                # Uncomment for continous movement
             inc = -1*abs(inc)
             joint_counter-=1
+                # Comment for continous movement
+            # inc = 0
         if joint_counter==0:
             inc = 1*abs(inc)
     
@@ -173,7 +177,7 @@ def position_control(model, data):
     Kp = np.eye(7,7)*300
 
     # Desired gain on velocity error (K_d)
-    Kd = 50
+    Kd = 10
 
     # Set the actuator control torques
     data.ctrl[:7] = data.qfrc_bias[:7] + Kp@(desired_joint_positions-data.qpos[:7]) + Kd*(desired_joint_velocities-data.qvel[:7])
